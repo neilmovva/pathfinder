@@ -1,3 +1,5 @@
+#include <SoftwareSerial.h>
+
 #include <Wire.h>
 
 #include <helper_3dmath.h>
@@ -9,10 +11,11 @@
 
 
 // define I/O pins
-const int ALPHA = 15;       // This is the [pinky] motor, but not really. It's the gate pin of an N-channel MOSFET, which switches a 5v motor.
-const int BETA = 16;        // This is the wrist-mounted motor; the auxilary coarse feedback device.
-
-
+const int ALPHA = 11;       // This is the [pinky] motor, but not really. It's the gate pin of an N-channel MOSFET, which switches a 5v motor.
+const int BETA = 12;        // This is the wrist-mounted motor; the auxilary coarse feedback device.
+const int RXPIN = 8;
+const int TXPIN = 9;
+SoftwareSerial softSerial(RXPIN, TXPIN);
 
 // Haptic feedback controls
 unsigned long lastPulse;
@@ -56,7 +59,7 @@ void setup()
   
   Serial.begin(57600);      // higher baud rates use FEWER CPU cycles
   
-  Serial3.begin(9600);
+  softSerial.begin(9600);
   
   pinMode(ALPHA, OUTPUT);
   pinMode(BETA, OUTPUT);
@@ -142,7 +145,7 @@ void distanceToHaptic()
     pulseDuration = 0;
     return;
   }
-  if(rawDistance <= 7){
+  if(rawDistance <= 6){
     dropout = true;
     return;
   } 
@@ -175,15 +178,16 @@ int getDistance(){
   byte msb;
   byte lsb;
   
-  Serial3.write(0x55);       // 0x55 = decimal value 85
-  msb = Serial3.read();
-  lsb = Serial3.read();
+  softSerial.write(0x55);       // 0x55 = decimal value 85
+  msb = softSerial.read();
+  lsb = softSerial.read();
   
   //Serial.println(msb);
   //Serial.println(lsb);
   
   int mmDistance = msb*256 + lsb;
-  Serial.println(mmDistance);
+  //Serial.println(mmDistance);
+  
 
   if(mmDistance > maxRange*10)
   {
