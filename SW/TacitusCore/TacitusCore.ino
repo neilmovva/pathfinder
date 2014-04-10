@@ -48,17 +48,16 @@ int rawDistance;
 const int US_ROUNDTRIP_CM = 59;   // (20000.0)/(331.3 + 0.606 * celsiusTemp) stored as uS/cm int, double DIV op takes ~34uS vs ~1uS for int
 const int timeout = US_ROUNDTRIP_CM * (maxRange + 100);    // the longest time we can reasonably expect the sensor to return a value in. (includes 100 cm margin of error)
 
+//IMU Stuff
 MPU6050 mpu;
+Quaternion q;
 
 
 void setup()
 {
   Wire.begin();
-  TWBR = 24;
-
   
   Serial.begin(57600);      // higher baud rates use FEWER CPU cycles
-  
   softSerial.begin(9600);
   
   pinMode(ALPHA, OUTPUT);
