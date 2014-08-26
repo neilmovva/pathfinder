@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.1415926-2.5-1.40.14 (TeX Live 2013) (format=pdflatex 2013.12.31)  2 JUL 2014 15:26
+This is pdfTeX, Version 3.1415926-2.5-1.40.14 (TeX Live 2013) (format=pdflatex 2013.12.31)  8 AUG 2014 18:06
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -261,18 +261,18 @@ File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 Here is how much of TeX's memory you used:
  3627 strings out of 494536
  54073 string characters out of 6167445
- 108024 words of memory out of 5000000
+ 109024 words of memory out of 5000000
  6826 multiletter control sequences out of 15000+600000
  9191 words of font info for 35 fonts, out of 8000000 for 9000
  319 hyphenation exceptions out of 8191
- 38i,6n,38p,239b,203s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 38i,6n,38p,784b,203s stack positions out of 5000i,500n,10000p,200000b,80000s
 </usr/local/texlive/2013basic/texmf-dist/fonts/type1/publi
 c/amsfonts/cm/cmbx9.pfb></usr/local/texlive/2013basic/texmf-dist/fonts/type1/pu
 blic/amsfonts/cm/cmr10.pfb></usr/local/texlive/2013basic/texmf-dist/fonts/type1
 /public/amsfonts/cm/cmr12.pfb></usr/local/texlive/2013basic/texmf-dist/fonts/ty
 pe1/public/amsfonts/cm/cmr17.pfb></usr/local/texlive/2013basic/texmf-dist/fonts
 /type1/public/amsfonts/cm/cmr9.pfb>
-Output written on "Sonar Glove.pdf" (1 page, 48594 bytes).
+Output written on "Sonar Glove.pdf" (1 page, 56649 bytes).
 PDF statistics:
  28 PDF objects out of 1000 (max. 8388607)
  19 compressed objects within 1 object stream
