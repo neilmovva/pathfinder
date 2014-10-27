@@ -11,11 +11,14 @@
 
 
 // define I/O pins
-const int ALPHA = 11;       // This is the [pinky] motor, but not really. It's the gate pin of an N-channel MOSFET, which switches a 5v motor.
-const int BETA = 12;        // This is the wrist-mounted motor; the auxilary coarse feedback device.
-const int RXPIN = 8;
-const int TXPIN = 9;
-SoftwareSerial softSerial(RXPIN, TXPIN);
+#ifdef TEENSY
+  const int ALPHA = 15;       // This is the [pinky] motor, but not really. It's the gate pin of an N-channel MOSFET, which switches a 5v motor.
+#else
+  const int ALPHA = 11;       // This is the [pinky] motor, but not really. It's the gate pin of an N-channel MOSFET, which switches a 5v motor.
+  const int RXPIN = 8;
+  const int TXPIN = 9;
+  SoftwareSerial softSerial(RXPIN, TXPIN);
+#endif
 
 // Haptic feedback controls
 unsigned long lastPulse;
@@ -23,20 +26,14 @@ int pulseDelay;                                         //  the delay between ha
 int pulseDuration;                                      //  the duration of each pulse. A higher value (longer pulses) feels more intense
 // constants for the most intense feedback (ms times)
 const int minDelay = 60;
+const int maxDuration = 30;
 boolean dropout = false;
-const int maxDuration = 18;
 // constants for the softest feedback (ms times)
-const int maxDelay = 400;
-const int minDuration = 25;
-
-//Long Range Specific
-boolean LRMode;                                   // global flag to dictate active range mode
-const int minDelayLR = 100;
-const int maxDelayLR = 500;
+const int maxDelay = 750;
+const int minDuration = 45;
 
 // System Ranging Controls
-const int threshold = 100;                    // the switchover point between proximal and distal ranges
-const int maxRange = 300;                     // upper bound for distal range, sensor's validated max is ~350cm
+const int maxRange = 300;                     // upper bound for range, sensor's validated max is ~350cm
 
 
 // Sensor Controls
@@ -58,7 +55,12 @@ void setup()
   Wire.begin();
   
   Serial.begin(57600);      // higher baud rates use FEWER CPU cycles
-  softSerial.begin(9600);
+  
+  #ifdef TEENSY
+    Serial3.begin(9600);
+  #else
+    softSerial.begin(9600);
+  #endif
   
   pinMode(ALPHA, OUTPUT);
   pinMode(BETA, OUTPUT);
@@ -93,7 +95,7 @@ void loop()
   }
   distanceToHaptic();  // we need to update our pulse delay and duration before acting on it
   if(dropout){
-    analogWrite(ALPHA, 130);
+    analogWrite(ALPHA, 110);
     return;
   }  
   else        
@@ -118,17 +120,9 @@ watches an internal clock to determine when it is time to send a haptic pulse
  */
 void sendPulse()
 {
-  if(LRMode){
-    digitalWrite(BETA, HIGH);
-    delay(pulseDuration);
-    digitalWrite(BETA, LOW);  
-  } 
-  else {
-    digitalWrite(ALPHA, HIGH);
-    delay(pulseDuration);
-    digitalWrite(ALPHA, LOW);
-  }  
-
+  digitalWrite(ALPHA, HIGH);
+  delay(pulseDuration);
+  digitalWrite(ALPHA, LOW);
   // open to experimentation with placement of timestamp
   lastPulse = millis();    
 }  
@@ -151,23 +145,12 @@ void distanceToHaptic()
   else {
     dropout = false;
 
-    if(!LRMode){
-      pulseDuration = map(rawDistance, 8, threshold, maxDuration, minDuration);
-
-      float a = 0.05; // alternatively, divide by int 20
-      float smoothDelay = (rawDistance - 8) * (rawDistance - 8);
-      smoothDelay *= a;
-      pulseDelay = (int) smoothDelay;
-      pulseDelay += minDelay;
-    }
-    else if(LRMode){
-      LRMode = true;
-      pulseDuration = 30;
-      pulseDelay = map(rawDistance, threshold + 1, maxRange, minDelayLR, maxDelayLR);
-    }
-
-
-
+    pulseDuration = map(rawDistance, 8, threshold, maxDuration, minDuration);
+    float a = 0.05; // alternatively, divide by int 20
+    float smoothDelay = (rawDistance - 8) * (rawDistance - 8);
+    smoothDelay *= a;
+    pulseDelay = (int) smoothDelay;
+    pulseDelay += minDelay;
   }
 }
 
@@ -187,16 +170,9 @@ int getDistance(){
   int mmDistance = msb*256 + lsb;
   //Serial.println(mmDistance);
   
-
   if(mmDistance > maxRange*10)
   {
     return -1;
-  }
-  
-  if(mmDistance <= 1000){
-     LRMode = false;
-  } else {
-     LRMode = true;
   }
 
   return mmDistance;
