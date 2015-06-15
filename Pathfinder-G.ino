@@ -1,3 +1,14 @@
+/*
+Code/project by Neil Movva.
+
+Documentation in progress.
+
+Major thanks to Jeff Rowberg for his I2C libraries and
+pioneering work with the MPU-6050. All related code is
+his, or at least draws heavily from it.
+*/
+
+
 #define MPU_ENABLE
 //#define MPU_ONLY_DEBUG
 
