@@ -10,10 +10,62 @@ his, or at least draws heavily from it.
 
 #define DEBUG_PRINT_YPR
 #define DEBUG_PRINT_MM
-
-
+//#define LED_DEBUG
+//#define ARM_MOTOR
+//#define MOTOR_NO_H_NFET
 #define MPU_ENABLE
 //#define MPU_ONLY_DEBUG
+
+#define SET(x,y) (x |= (1<<y))
+#define CLR(x,y) (x &= (~(1<<y)))
+
+#define PORTl PORTC
+#define DDRl DDRC
+#define L0 0
+#define L1 1
+
+#define PORTm PORTD
+#define DDRm DDRD
+#define MP 6    //PD6
+#define MN 5    //PD5
+
+#define PORTus PORTB
+#define TRIG 0    //PB0, also pin 8
+#define ECHO 7    //PD7, also pin 7
+
+#define L0a A0
+#define L1a A1
+
+#define MPa 6
+#define MNa 5
+#define FWD 1
+#define REV -1
+#define STOP 0
+#define COAST -1
+#define BRAKE 1
+#define PULSE_LENGTH 25
+
+#define TRIGa 8
+#define ECHOa 7
+
+#define V_SOUND 0.34        //represented in mm/uS
+#define MAX_RANGE 3000      //in mm
+#define PING_TIMEOUT 20000  // 2 * MAX_RANGE/V_SOUND
+#define MAX_HAPTIC 2000
+#define DROPOUT 50
+#define minPingPeriod 50
+
+uint32_t lastFlash = 0;
+uint32_t lastPing = 0;
+uint32_t lastPulse = 0;
+uint32_t timeElapsed = 0;
+
+int16_t pulsePeriod = 250;
+int16_t distance = MAX_RANGE;
+
+bool faceDown = false;
+bool ledState = false;
+
 
 #ifdef MPU_ENABLE
 
@@ -22,7 +74,6 @@ his, or at least draws heavily from it.
 #include "helper_3dmath.h"
 #define HOST_DMP_READ_RATE 9    // 1khz / (1 + READ_RATE) = 100 Hz
 #include "MPU6050_6Axis_MotionApps20.h"
-
 
 MPU6050 mpu;
 bool dmpReady = false;  // set true if DMP init was successful
@@ -157,64 +208,8 @@ void calibrate_sensors() {
 #endif
 
 
-#define SET(x,y) (x |= (1<<y))
-#define CLR(x,y) (x &= (~(1<<y)))
-
-#define PORTl PORTC
-#define DDRl DDRC
-#define L0 0
-#define L1 1
-
-#define PORTm PORTD
-#define DDRm DDRD
-#define MP 6    //PD6
-#define MN 5    //PD5
-
-#define PORTus PORTB
-#define TRIG 0    //PB0, also pin 8
-#define ECHO 7    //PD7, also pin 7
-
-#define L0a A0
-#define L1a A1
-
-#define MPa 6
-#define MNa 5
-#define FWD 1
-#define REV -1
-#define STOP 0
-#define COAST -1
-#define BRAKE 1
-#define PULSE_LENGTH 25
-
-#define TRIGa 8
-#define ECHOa 7
-
-#define V_SOUND 0.34        //represented in mm/uS
-#define MAX_RANGE 3000      //in mm
-#define PING_TIMEOUT 20000  // 2 * MAX_RANGE/V_SOUND
-#define MAX_HAPTIC 2000
-#define DROPOUT 50
-#define minPingPeriod 50
-
-uint32_t lastFlash = 0;
-uint32_t lastPing = 0;
-uint32_t lastPulse = 0;
-uint32_t timeElapsed = 0;
-
-int16_t pulsePeriod = 250;
-int16_t distance = MAX_RANGE;
-
-//#define LED_DEBUG
-//#define ARM_MOTOR
-//#define MOTOR_NO_H_NFET
-
-bool faceDown = false;
-bool ledState = false;
-
 void drive(int cmd){
-
   #ifdef ARM_MOTOR
-
     #ifdef MOTOR_NO_H_NFET
       switch(cmd){
         case 1:   //drive motor in the (arbitrarily) forward direction
@@ -243,7 +238,6 @@ void drive(int cmd){
         break;
       }
     #endif
-
   #endif
 }
 
@@ -300,7 +294,7 @@ int16_t getDistance(){
 
 void pulse(){
   drive(FWD, PULSE_LENGTH);   //drive ERM
-  //drive(REV, PULSE_LENGTH/4); //active braking (regen?) with default braking at end
+  drive(REV, PULSE_LENGTH/4); //active braking (regen?) with default braking at end
   lastPulse = millis();
 }
 
@@ -344,7 +338,7 @@ void loop() {
   #ifdef MPU_ENABLE
   if(mpuInterrupt || fifoCount > packetSize){
       processMPU();
-      if(yAngle > 60){
+      if(yAngle < -60){
         faceDown = true;
         Serial.println("facedown!");
       } else {
