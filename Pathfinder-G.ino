@@ -179,13 +179,14 @@ void calibrate_sensors() {
 #define STOP 0
 #define COAST -1
 #define BRAKE 1
-#define PULSE_LENGTH 30
+#define PULSE_LENGTH 25
 
 #define TRIGa 8
 #define ECHOa 7
 
-float vSound = 0.34;   //represented in mm/uS
-#define MAX_RANGE 3000  //in mm
+#define V_SOUND 0.34        //represented in mm/uS
+#define MAX_RANGE 3000      //in mm
+#define PING_TIMEOUT 20000  // 2 * MAX_RANGE/V_SOUND
 #define MAX_HAPTIC 2000
 #define DROPOUT 50
 #define minPingPeriod 50
@@ -270,13 +271,13 @@ int16_t getDistance(){
   delayMicroseconds(10);
   CLR(PORTus, TRIG);
 
-  mm = pulseIn(ECHOa, HIGH, 30000); //5m roundtrip timeout (10m abs distance)
+  mm = pulseIn(ECHOa, HIGH, PING_TIMEOUT); //MAX_RANGE roundtrip timeout
 
   if (mm == 0){
     return MAX_RANGE;
   }
 
-  mm *= vSound;
+  mm *= V_SOUND;
   mm /= 2;
 
   if (mm <= DROPOUT){
