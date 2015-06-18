@@ -8,14 +8,17 @@ pioneering work with the MPU-6050. All related code is
 his, or at least draws heavily from it.
 */
 
+#define DEBUG_PRINT_YPR
+#define DEBUG_PRINT_MM
+
 
 #define MPU_ENABLE
 //#define MPU_ONLY_DEBUG
 
 #ifdef MPU_ENABLE
 
-#include "I2Cdev.h"
 #include "Wire.h"
+#include "I2Cdev.h"
 #include "helper_3dmath.h"
 #define HOST_DMP_READ_RATE 9    // 1khz / (1 + READ_RATE) = 100 Hz
 #include "MPU6050_6Axis_MotionApps20.h"
@@ -114,12 +117,14 @@ void processMPU() {
     xAngle = ypr[0] * 180 / M_PI;
     yAngle = ypr[1] * 180 / M_PI;
     zAngle = ypr[2] * 180 / M_PI;
+    #ifdef DEBUG_PRINT_YPR
     Serial.print("ypr\t\t");
     Serial.print(xAngle);
     Serial.print("\t\t");
     Serial.print(yAngle);
     Serial.print("\t\t");
     Serial.println(zAngle);
+    #endif
   }
 }
 
@@ -285,8 +290,10 @@ int16_t getDistance(){
   }
 
   distance = mm;
-  //Serial.print("distance:\t");
-  //Serial.print(mm);
+  #ifdef DEBUG_PRINT_MM
+  Serial.print("distance:\t");
+  Serial.println(mm);
+  #endif
   digitalWrite(L0a, LOW);
   return mm;
 }
