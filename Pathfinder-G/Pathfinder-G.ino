@@ -72,7 +72,7 @@ bool ledState = false;
 #include "Wire.h"
 #include "I2Cdev.h"
 #include "helper_3dmath.h"
-#define HOST_DMP_READ_RATE 19    // 1khz / (1 + READ_RATE) = 50 Hz
+#define HOST_DMP_READ_RATE 4    // 1khz / (1 + READ_RATE) = 200 Hz
 #include "libs/Pathfinder_MPU6050_6Axis_MotionApps20.h"
 
 MPU6050 mpu;
