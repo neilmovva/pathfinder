@@ -102,11 +102,14 @@ void dmpDataReady() {
 void setup_mpu(){
   mpu.initialize();
   devStatus = mpu.dmpInitialize();
-  //calibrate_sensors();
-  mpu.setXGyroOffset(220);
-  mpu.setYGyroOffset(76);
-  mpu.setZGyroOffset(-85);
-  mpu.setZAccelOffset(1788); // 1688 factory default for my test chip
+
+  //data from G2-200 (how specific?)
+  mpu.setXGyroOffset(-183);
+  mpu.setYGyroOffset(82);
+  mpu.setZGyroOffset(23);
+  mpu.setXAccelOffset(-4504);
+  mpu.setYAccelOffset(-959);
+  mpu.setZAccelOffset(1383);
   
   if (devStatus == 0) {
     // turn on the DMP, now that it's ready
@@ -177,39 +180,6 @@ void processMPU() {
     Serial.println(zAngle);
     #endif
   }
-}
-
-void calibrate_sensors() {
-  uint8_t num_readings = 10;
-
-  // Discard the first reading (don't know if this is needed or
-  // not, however, it won't hurt.)
-  mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-  
-  // Read and average the raw values
-  for (uint8_t i = 0; i < num_readings; i++) {
-    mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-    base_x_gyro += gx;
-    base_y_gyro += gy;
-    base_z_gyro += gz;
-    base_x_accel += ax;
-    base_y_accel += ay;
-    base_y_accel += az;
-  }
-  
-  base_x_gyro /= num_readings;
-  base_y_gyro /= num_readings;
-  base_z_gyro /= num_readings;
-  base_x_accel /= num_readings;
-  base_y_accel /= num_readings;
-  base_z_accel /= num_readings;
-
-  mpu.setXGyroOffset(base_x_gyro);
-  mpu.setYGyroOffset(base_y_gyro);
-  mpu.setZGyroOffset(base_z_gyro);
-  //mpu.setXAccelOffset(base_x_accel);
-  //mpu.setYAccelOffset(base_y_accel);
-  mpu.setZAccelOffset(base_z_accel);
 }
 
 #endif

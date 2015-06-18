@@ -1,0 +1,51 @@
+G2-200 offsets
+
+-4504       -959      1383     -183    82     23
+aX          aY        aZ       gX      gY     gZ
+
+
+
+
+
+
+
+
+
+
+
+
+
+old code
+
+void calibrate_sensors() {
+  uint8_t num_readings = 10;
+
+  // Discard the first reading (don't know if this is needed or
+  // not, however, it won't hurt.)
+  mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+  
+  // Read and average the raw values
+  for (uint8_t i = 0; i < num_readings; i++) {
+    mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+    base_x_gyro += gx;
+    base_y_gyro += gy;
+    base_z_gyro += gz;
+    base_x_accel += ax;
+    base_y_accel += ay;
+    base_y_accel += az;
+  }
+  
+  base_x_gyro /= num_readings;
+  base_y_gyro /= num_readings;
+  base_z_gyro /= num_readings;
+  base_x_accel /= num_readings;
+  base_y_accel /= num_readings;
+  base_z_accel /= num_readings;
+
+  mpu.setXGyroOffset(base_x_gyro);
+  mpu.setYGyroOffset(base_y_gyro);
+  mpu.setZGyroOffset(base_z_gyro);
+  //mpu.setXAccelOffset(base_x_accel);
+  //mpu.setYAccelOffset(base_y_accel);
+  mpu.setZAccelOffset(base_z_accel);
+}
