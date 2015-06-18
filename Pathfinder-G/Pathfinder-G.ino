@@ -9,7 +9,7 @@ his, or at least draws heavily from it.
 */
 
 #define DEBUG_PRINT_YPR
-#define DEBUG_PRINT_MM
+//#define DEBUG_PRINT_MM
 //#define LED_DEBUG
 //#define ARM_MOTOR
 //#define MOTOR_NO_H_NFET
@@ -53,7 +53,7 @@ his, or at least draws heavily from it.
 #define PING_TIMEOUT 20000  // 2 * MAX_RANGE/V_SOUND
 #define MAX_HAPTIC 2000
 #define DROPOUT 50
-#define minPingPeriod 50
+#define minPingPeriod 100
 
 uint32_t lastFlash = 0;
 uint32_t lastPing = 0;
@@ -72,8 +72,8 @@ bool ledState = false;
 #include "Wire.h"
 #include "I2Cdev.h"
 #include "helper_3dmath.h"
-#define HOST_DMP_READ_RATE 9    // 1khz / (1 + READ_RATE) = 100 Hz
-#include "MPU6050_6Axis_MotionApps20.h"
+#define HOST_DMP_READ_RATE 19    // 1khz / (1 + READ_RATE) = 50 Hz
+#include "libs/Pathfinder_MPU6050_6Axis_MotionApps20.h"
 
 MPU6050 mpu;
 bool dmpReady = false;  // set true if DMP init was successful
@@ -102,12 +102,12 @@ void dmpDataReady() {
 void setup_mpu(){
   mpu.initialize();
   devStatus = mpu.dmpInitialize();
-
+  //calibrate_sensors();
   mpu.setXGyroOffset(220);
   mpu.setYGyroOffset(76);
   mpu.setZGyroOffset(-85);
   mpu.setZAccelOffset(1788); // 1688 factory default for my test chip
-
+  
   if (devStatus == 0) {
     // turn on the DMP, now that it's ready
     Serial.println(F("Enabling DMP..."));
@@ -203,6 +203,13 @@ void calibrate_sensors() {
   base_x_accel /= num_readings;
   base_y_accel /= num_readings;
   base_z_accel /= num_readings;
+
+  mpu.setXGyroOffset(base_x_gyro);
+  mpu.setYGyroOffset(base_y_gyro);
+  mpu.setZGyroOffset(base_z_gyro);
+  //mpu.setXAccelOffset(base_x_accel);
+  //mpu.setYAccelOffset(base_y_accel);
+  mpu.setZAccelOffset(base_z_accel);
 }
 
 #endif
@@ -340,7 +347,7 @@ void loop() {
       processMPU();
       if(yAngle < -60){
         faceDown = true;
-        Serial.println("facedown!");
+        //Serial.println("facedown!");
       } else {
         faceDown = false;
       }
