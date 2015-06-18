@@ -16,8 +16,10 @@ his, or at least draws heavily from it.
 
 #include "I2Cdev.h"
 #include "Wire.h"
-#include "MPU6050_6Axis_MotionApps20.h"
 #include "helper_3dmath.h"
+#define HOST_DMP_READ_RATE 9    // 1khz / (1 + READ_RATE) = 100 Hz
+#include "MPU6050_6Axis_MotionApps20.h"
+
 
 MPU6050 mpu;
 bool dmpReady = false;  // set true if DMP init was successful
@@ -34,6 +36,9 @@ VectorFloat gravity;    // [x, y, z]            gravity vector
 float euler[3];         // [psi, theta, phi]    Euler angle container
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container gravity
 int xAngle, yAngle, zAngle;
+int16_t ax, ay, az;
+int16_t gx, gy, gz;
+int32_t base_x_gyro, base_y_gyro, base_z_gyro, base_x_accel, base_y_accel, base_z_accel;
 
 volatile bool mpuInterrupt = false;     // indicates whether MPU interrupt pin
 void dmpDataReady() {
@@ -117,6 +122,33 @@ void processMPU() {
     Serial.println(zAngle);
   }
 }
+
+void calibrate_sensors() {
+  uint8_t num_readings = 10;
+
+  // Discard the first reading (don't know if this is needed or
+  // not, however, it won't hurt.)
+  mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+  
+  // Read and average the raw values
+  for (uint8_t i = 0; i < num_readings; i++) {
+    mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+    base_x_gyro += gx;
+    base_y_gyro += gy;
+    base_z_gyro += gz;
+    base_x_accel += ax;
+    base_y_accel += ay;
+    base_y_accel += az;
+  }
+  
+  base_x_gyro /= num_readings;
+  base_y_gyro /= num_readings;
+  base_z_gyro /= num_readings;
+  base_x_accel /= num_readings;
+  base_y_accel /= num_readings;
+  base_z_accel /= num_readings;
+}
+
 #endif
 
 
