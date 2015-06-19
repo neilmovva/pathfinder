@@ -10,9 +10,8 @@ his, or at least draws heavily from it.
 
 #define DEBUG_PRINT_YPR
 //#define DEBUG_PRINT_MM
-//#define LED_DEBUG
-//#define ARM_MOTOR
-//#define MOTOR_NO_H_NFET
+#define ARM_MOTOR
+#define MOTOR_NO_H_NFET
 #define MPU_ENABLE
 //#define MPU_ONLY_DEBUG
 
@@ -53,7 +52,7 @@ his, or at least draws heavily from it.
 #define PING_TIMEOUT 20000  // 2 * MAX_RANGE/V_SOUND
 #define MAX_HAPTIC 2000
 #define DROPOUT 50
-#define minPingPeriod 100
+#define minPingPeriod 200
 
 uint32_t lastFlash = 0;
 uint32_t lastPing = 0;
@@ -72,7 +71,7 @@ bool ledState = false;
 #include "Wire.h"
 #include "I2Cdev.h"
 #include "helper_3dmath.h"
-#define HOST_DMP_READ_RATE 4    // 1khz / (1 + READ_RATE) = 200 Hz
+#define HOST_DMP_READ_RATE 7    // 1khz / (1 + READ_RATE) = 125 Hz
 #include "libs/Pathfinder_MPU6050_6Axis_MotionApps20.h"
 
 MPU6050 mpu;
@@ -171,12 +170,20 @@ void processMPU() {
     xAngle = ypr[0] * 180 / M_PI;
     yAngle = ypr[1] * 180 / M_PI;
     zAngle = ypr[2] * 180 / M_PI;
+
+    if(yAngle < -55){
+      faceDown = true;
+      //Serial.println("faceDown!");
+    } else {
+      faceDown = false;
+    }
+
     #ifdef DEBUG_PRINT_YPR
-    Serial.print("ypr\t\t");
+    Serial.print("ypr      ");
     Serial.print(xAngle);
-    Serial.print("\t\t");
+    Serial.print("   ");
     Serial.print(yAngle);
-    Serial.print("\t\t");
+    Serial.print("   ");
     Serial.println(zAngle);
     #endif
   }
@@ -184,17 +191,16 @@ void processMPU() {
 
 #endif
 
-
 void drive(int cmd){
   #ifdef ARM_MOTOR
     #ifdef MOTOR_NO_H_NFET
       switch(cmd){
         case 1:   //drive motor in the (arbitrarily) forward direction
-        digitalWrite(MPa, HIGH);
+        SET(PORTm, MP);
         break;
 
         default:   //cut-off motor (floating)
-        digitalWrite(MPa, LOW);
+        CLR(PORTm, MP);
         break;
       }
     #else
@@ -236,7 +242,7 @@ int16_t getDistance(){
     return distance;
   }
 
-  digitalWrite(L0a, HIGH);
+  SET(PORTl, L0);
 
   lastPing = millis();
   int16_t mm;
@@ -265,7 +271,7 @@ int16_t getDistance(){
   Serial.print("distance:\t");
   Serial.println(mm);
   #endif
-  digitalWrite(L0a, LOW);
+  CLR(PORTl, L0);
   return mm;
 }
 
@@ -296,8 +302,8 @@ void setup() {
   pinMode(TRIGa, OUTPUT);
   pinMode(ECHOa, INPUT);
 
-  pinMode(L0a, OUTPUT);
-  pinMode(L1a, OUTPUT);
+  pinMode(L0a, OUTPUT); // the activity led (blinks when sensors are read)
+  pinMode(L1a, OUTPUT); // the system status led (if off, system off)
 
   digitalWrite(L1a, HIGH);
 
@@ -315,12 +321,6 @@ void loop() {
   #ifdef MPU_ENABLE
   if(mpuInterrupt || fifoCount > packetSize){
       processMPU();
-      if(yAngle < -60){
-        faceDown = true;
-        //Serial.println("facedown!");
-      } else {
-        faceDown = false;
-      }
   }
   #endif
   
@@ -328,12 +328,17 @@ void loop() {
   return;
   #endif
 
-  getDistance();   //getDistance will limit itself if we're going too fast
-  translate();  //expensive math op to generate pulse period value
-
-  timeElapsed = millis() - lastPulse;  //timestamping for pulse schedule
-  if(timeElapsed > pulsePeriod){  //watchdog for pulse frequency
-    pulse();
+  if(!faceDown){
+    CLR(PORTl, L0);
+    SET(PORTl, L1);
+    getDistance();          //getDistance will limit itself if we're going too fast
+    translate();            //expensive math op to generate pulse period value
+    timeElapsed = millis() - lastPulse;  //timestamping for pulse schedule
+    if(timeElapsed > pulsePeriod){  //watchdog for pulse frequency
+      pulse();
+    }
+  } else {
+    SET(PORTl, L0);
+    CLR(PORTl, L1);
   }
-  
 }
