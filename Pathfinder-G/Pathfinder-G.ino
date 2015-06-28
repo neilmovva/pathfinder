@@ -47,6 +47,15 @@ his, or at least draws heavily from it.
 #define TRIGa 8
 #define ECHOa 7
 
+#define EE_CALIBRATED_ADDR  0x01
+#define EE_CALIBRATED_TEST  0xAA
+#define EE_GYRO_X_ADDR      0x10
+#define EE_GYRO_Y_ADDR      0x20
+#define EE_GYRO_Z_ADDR      0x30
+#define EE_ACCEL_X_ADDR     0x40
+#define EE_ACCEL_Y_ADDR     0x50
+#define EE_ACCEL_Z_ADDR     0x60
+
 #define V_SOUND 0.34        //represented in mm/uS
 #define MAX_RANGE 3000      //in mm
 #define PING_TIMEOUT 20000  // 2 * MAX_RANGE/V_SOUND
@@ -68,6 +77,7 @@ bool ledState = false;
 
 #ifdef MPU_ENABLE
 
+#include "EEPROM.h"
 #include "Wire.h"
 #include "I2Cdev.h"
 #include "helper_3dmath.h"
@@ -167,9 +177,7 @@ void processMPU() {
     mpu.dmpGetQuaternion(&q, fifoBuffer);
     mpu.dmpGetGravity(&gravity, &q);
     mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-    xAngle = ypr[0] * 180 / M_PI;
     yAngle = ypr[1] * 180 / M_PI;
-    zAngle = ypr[2] * 180 / M_PI;
 
     if(yAngle < -55){
       faceDown = true;
@@ -179,6 +187,8 @@ void processMPU() {
     }
 
     #ifdef DEBUG_PRINT_YPR
+    xAngle = ypr[0] * 180 / M_PI;
+    zAngle = ypr[2] * 180 / M_PI;
     Serial.print("ypr      ");
     Serial.print(xAngle);
     Serial.print("   ");
@@ -187,6 +197,16 @@ void processMPU() {
     Serial.println(zAngle);
     #endif
   }
+}
+//TODO: bring in calibration routines, but in a modular way
+void calibrateMPU(){
+  byte isCalibrated = EEPROM.read(EE_CALIBRATED_ADDR);
+  if(isCalibrated == EE_CALIBRATED_TEST){
+
+    } else {
+
+    }
+
 }
 
 #endif
@@ -328,17 +348,19 @@ void loop() {
   return;
   #endif
 
-  if(!faceDown){
-    CLR(PORTl, L0);
-    SET(PORTl, L1);
-    getDistance();          //getDistance will limit itself if we're going too fast
-    translate();            //expensive math op to generate pulse period value
-    timeElapsed = millis() - lastPulse;  //timestamping for pulse schedule
-    if(timeElapsed > pulsePeriod){  //watchdog for pulse frequency
-      pulse();
-    }
-  } else {
+  if(faceDown){
     SET(PORTl, L0);
     CLR(PORTl, L1);
+    return;
+  } else {
+    CLR(PORTl, L0);
+    SET(PORTl, L1);
+  }
+
+  getDistance();          //getDistance will limit itself if we're going too fast
+  translate();            //expensive math op to generate pulse period value
+  timeElapsed = millis() - lastPulse;  //timestamping for pulse schedule
+  if(timeElapsed > pulsePeriod){  //watchdog for pulse frequency
+    pulse();
   }
 }
