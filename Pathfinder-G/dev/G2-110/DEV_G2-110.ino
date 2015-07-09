@@ -8,16 +8,12 @@ pioneering work with the MPU-6050. All related code is
 his, or at least draws heavily from it.
 */
 
-#define DEBUG_PRINT_YPR
-#define DEBUG_PRINT_MM
-
-//#define ARM_MOTOR
-//#define MOTOR_NO_H_NFET
-#define MOTOR_H_L9110
-
-#define MPU_ENABLE
+//#define DEBUG_PRINT_YPR
+//#define DEBUG_PRINT_MM
+#define ARM_MOTOR
+#define MOTOR_NO_H_PFET
+//#define MPU_ENABLE
 //#define MPU_ONLY_DEBUG
-#define LOW_POWER //disables vibration during DROPOUT. useful for demos
 
 #define SET(x,y) (x |= (1<<y))
 #define CLR(x,y) (x &= (~(1<<y)))
@@ -26,7 +22,6 @@ his, or at least draws heavily from it.
 #define DDRl DDRC
 #define L0 0
 #define L1 1
-#define L2 2
 
 #define PORTm PORTD
 #define DDRm DDRD
@@ -47,13 +42,13 @@ his, or at least draws heavily from it.
 #define STOP 0
 #define COAST -1
 #define BRAKE 1
-#define PULSE_LENGTH 30
+#define PULSE_LENGTH 25
 
 #define TRIGa 8
 #define ECHOa 7
 
 #define EE_CALIBRATED_ADDR  0x01
-#define EE_CALIBRATED_TEST  0xAA //arbitrary byte to write and verify for
+#define EE_CALIBRATED_TEST  0xAA
 #define EE_GYRO_X_ADDR      0x10
 #define EE_GYRO_Y_ADDR      0x20
 #define EE_GYRO_Z_ADDR      0x30
@@ -65,7 +60,7 @@ his, or at least draws heavily from it.
 #define MAX_RANGE 3000      //in mm
 #define PING_TIMEOUT 20000  // 2 * MAX_RANGE/V_SOUND
 #define MAX_HAPTIC 2000
-#define DROPOUT 150
+#define DROPOUT 50
 #define minPingPeriod 200
 
 uint32_t lastFlash = 0;
@@ -117,7 +112,7 @@ void setup_mpu(){
   mpu.initialize();
   devStatus = mpu.dmpInitialize();
 
-  //data from G2-200 (how specific? very specific)
+  //data from G2-200 (how specific?)
   mpu.setXGyroOffset(-183);
   mpu.setYGyroOffset(82);
   mpu.setZGyroOffset(23);
@@ -194,11 +189,11 @@ void processMPU() {
     #ifdef DEBUG_PRINT_YPR
     xAngle = ypr[0] * 180 / M_PI;
     zAngle = ypr[2] * 180 / M_PI;
-    Serial.print("ypr\t\t");
+    Serial.print("ypr      ");
     Serial.print(xAngle);
-    Serial.print("\t");
+    Serial.print("   ");
     Serial.print(yAngle);
-    Serial.print("\t");
+    Serial.print("   ");
     Serial.println(zAngle);
     #endif
   }
@@ -218,35 +213,33 @@ void calibrateMPU(){
 
 void drive(int cmd){
   #ifdef ARM_MOTOR
-    #ifdef MOTOR_NO_H_NFET
+    #ifdef MOTOR_NO_H_PFET
       switch(cmd){
         case 1:   //drive motor in the (arbitrarily) forward direction
         SET(PORTm, MP);
         break;
 
         default:   //cut-off motor (floating)
-        CLR(PORTm, MP);
+        SET(PORTm, MP);
         break;
       }
-    #else 
-      #ifdef MOTOR_H_L9110
-        switch(cmd){
-          case 1:   //drive motor in the (arbitrarily) forward direction
-          SET(PORTm, MP);
-          CLR(PORTm, MN);
-          break;
+    #else
+      switch(cmd){
+        case 1:   //drive motor in the (arbitrarily) forward direction
+        digitalWrite(MPa, HIGH);
+        digitalWrite(MNa, LOW);
+        break;
 
-          case -1:  //drive motor in the (arbitrarily) reverse direction
-          CLR(PORTm, MP);
-          SET(PORTm, MN);
-          break;
+        case -1:  //drive motor in the (arbitrarily) reverse direction
+        digitalWrite(MPa, LOW);
+        digitalWrite(MNa, HIGH);
+        break;
 
-          default:   //L9110 goes into HiZ
-          CLR(PORTm, MP);
-          CLR(PORTm, MN);
-          break;
-        }
-      #endif
+        default:   //short motor to ground, stalling motion
+        digitalWrite(MPa, HIGH);
+        digitalWrite(MNa, HIGH);
+        break;
+      }
     #endif
   #endif
 }
@@ -269,7 +262,7 @@ int16_t getDistance(){
     return distance;
   }
 
-  SET(PORTl, L1);
+  SET(PORTl, L0);
 
   lastPing = millis();
   int16_t mm;
@@ -298,7 +291,7 @@ int16_t getDistance(){
   Serial.print("distance:\t");
   Serial.println(mm);
   #endif
-  CLR(PORTl, L1);
+  CLR(PORTl, L0);
   return mm;
 }
 
@@ -311,31 +304,29 @@ void pulse(){
 void translate(){
   if(distance == -1){
     while(distance == -1){
-      #ifndef LOW_POWER
-      drive(FWD);
-      #endif
       distance = getDistance();
+      drive(FWD);
     }
     drive(STOP);
     return;
   }
-  pulsePeriod = map(distance, DROPOUT, MAX_HAPTIC, 50, 1000);
+  pulsePeriod = map(distance, DROPOUT, MAX_HAPTIC, 50, 750);
 }
 
 void setup() {
-  SET(DDRm, MP);
-  SET(DDRm, MN);
-  CLR(DDRm, MP);
-  CLR(DDRm, MN);
+  pinMode(MPa, OUTPUT);
+  pinMode(MNa, OUTPUT);
+
+  SET(PORTm, MP);
+  SET(PORTm, MN);
 
   pinMode(TRIGa, OUTPUT);
   pinMode(ECHOa, INPUT);
 
-  SET(DDRl, L0);  // the activity led (blinks when sensors are read)
-  SET(DDRl, L1);  // the system status led (if off, system off)
-  SET(DDRl, L2);
+  pinMode(L0a, OUTPUT); // the activity led (blinks when sensors are read)
+  pinMode(L1a, OUTPUT); // the system status led (if off, system off)
 
-  digitalWrite(L0a, HIGH);
+  digitalWrite(L1a, HIGH);
 
   Serial.begin(115200);
 
@@ -359,13 +350,15 @@ void loop() {
   #endif
 
   if(faceDown){
-    SET(PORTl, L2);
-    //return;
+    SET(PORTl, L0);
+    CLR(PORTl, L1);
+    return;
   } else {
-    CLR(PORTl, L2);
+    CLR(PORTl, L0);
+    SET(PORTl, L1);
   }
 
-  distance = getDistance();          //getDistance will limit itself if we're going too fast
+  getDistance();          //getDistance will limit itself if we're going too fast
   translate();            //expensive math op to generate pulse period value
   timeElapsed = millis() - lastPulse;  //timestamping for pulse schedule
   if(timeElapsed > pulsePeriod){  //watchdog for pulse frequency
