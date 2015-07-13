@@ -18,6 +18,7 @@ his, or at least draws heavily from it.
 #define MPU_ENABLE
 //#define MPU_ONLY_DEBUG
 #define LOW_POWER //disables vibration during DROPOUT. useful for demos
+#define FORCE_RECALIBRATION
 
 #define SET(x,y) (x |= (1<<y))
 #define CLR(x,y) (x &= (~(1<<y)))
@@ -104,9 +105,15 @@ VectorFloat gravity;    // [x, y, z]            gravity vector
 float euler[3];         // [psi, theta, phi]    Euler angle container
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container gravity
 int xAngle, yAngle, zAngle;
-int16_t ax, ay, az;
-int16_t gx, gy, gz;
-int32_t base_x_gyro, base_y_gyro, base_z_gyro, base_x_accel, base_y_accel, base_z_accel;
+
+int buffersize=1000;     //
+int accel_deadzone=8;     //
+int gyro_deadzone=1;     //
+
+int16_t ax, ay, az,gx, gy, gz;
+
+int mean_ax,mean_ay,mean_az,mean_gx,mean_gy,mean_gz,state=0;
+int ax_offset,ay_offset,az_offset,gx_offset,gy_offset,gz_offset;
 
 volatile bool mpuInterrupt = false;     // indicates whether MPU interrupt pin
 void dmpDataReady() {
@@ -118,12 +125,7 @@ void setup_mpu(){
   devStatus = mpu.dmpInitialize();
 
   //data from G2-200 (how specific? very specific)
-  mpu.setXGyroOffset(-183);
-  mpu.setYGyroOffset(82);
-  mpu.setZGyroOffset(23);
-  mpu.setXAccelOffset(-4504);
-  mpu.setYAccelOffset(-959);
-  mpu.setZAccelOffset(1383);
+  calibrateMPU();
   
   if (devStatus == 0) {
     // turn on the DMP, now that it's ready
@@ -203,15 +205,132 @@ void processMPU() {
     #endif
   }
 }
+
+void avgSensors(){
+  long i=0,buff_ax=0,buff_ay=0,buff_az=0,buff_gx=0,buff_gy=0,buff_gz=0;
+
+  while (i<(buffersize+101)){
+    // read raw accel/gyro measurements from device
+    mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+    
+    if (i>100 && i<=(buffersize+100)){ //First 100 measures are discarded
+      buff_ax=buff_ax+ax;
+      buff_ay=buff_ay+ay;
+      buff_az=buff_az+az;
+      buff_gx=buff_gx+gx;
+      buff_gy=buff_gy+gy;
+      buff_gz=buff_gz+gz;
+    }
+    if (i==(buffersize+100)){
+      mean_ax=buff_ax/buffersize;
+      mean_ay=buff_ay/buffersize;
+      mean_az=buff_az/buffersize;
+      mean_gx=buff_gx/buffersize;
+      mean_gy=buff_gy/buffersize;
+      mean_gz=buff_gz/buffersize;
+    }
+    i++;
+    delay(2); //Needed so we don't get repeated measures
+  }
+}
+
+void cycleOffsets(){
+  ax_offset=-mean_ax/8;
+  ay_offset=-mean_ay/8;
+  az_offset=(16384-mean_az)/8;
+
+  gx_offset=-mean_gx/4;
+  gy_offset=-mean_gy/4;
+  gz_offset=-mean_gz/4;
+  while (1){
+    int ready=0;
+    mpu.setXAccelOffset(ax_offset);
+    mpu.setYAccelOffset(ay_offset);
+    mpu.setZAccelOffset(az_offset);
+
+    mpu.setXGyroOffset(gx_offset);
+    mpu.setYGyroOffset(gy_offset);
+    mpu.setZGyroOffset(gz_offset);
+
+    avgSensors();
+    Serial.println("...");
+
+    if (abs(mean_ax)<=accel_deadzone) ready++;
+    else ax_offset=ax_offset-mean_ax/accel_deadzone;
+
+    if (abs(mean_ay)<=accel_deadzone) ready++;
+    else ay_offset=ay_offset-mean_ay/accel_deadzone;
+
+    if (abs(16384-mean_az)<=accel_deadzone) ready++;
+    else az_offset=az_offset+(16384-mean_az)/accel_deadzone;
+
+    if (abs(mean_gx)<=gyro_deadzone) ready++;
+    else gx_offset=gx_offset-mean_gx/(gyro_deadzone+1);
+
+    if (abs(mean_gy)<=gyro_deadzone) ready++;
+    else gy_offset=gy_offset-mean_gy/(gyro_deadzone+1);
+
+    if (abs(mean_gz)<=gyro_deadzone) ready++;
+    else gz_offset=gz_offset-mean_gz/(gyro_deadzone+1);
+
+    if (ready==6) break;
+  }
+}
+
 //TODO: bring in calibration routines, but in a modular way
 void calibrateMPU(){
   byte isCalibrated = EEPROM.read(EE_CALIBRATED_ADDR);
+  #ifdef FORCE_RECALIBRATION
+  isCalibrated = FALSE;
+  #endif
   if(isCalibrated == EE_CALIBRATED_TEST){
+    Serial.println("Recalling offsets from memory");
+    ax_offset = EEPROM.read(EE_ACCEL_X_ADDR);
+    ay_offset = EEPROM.read(EE_ACCEL_Y_ADDR);
+    az_offset = EEPROM.read(EE_ACCEL_Z_ADDR);
+    gx_offset = EEPROM.read(EE_GYRO_X_ADDR);
+    gy_offset = EEPROM.read(EE_GYRO_Y_ADDR);
+    gz_offset = EEPROM.read(EE_GYRO_Z_ADDR);
+    
+  } else {
+    Serial.println("First run, calculating offsets");
+    mpu.setXAccelOffset(0);
+    mpu.setYAccelOffset(0);
+    mpu.setZAccelOffset(0);
+    mpu.setXGyroOffset(0);
+    mpu.setYGyroOffset(0);
+    mpu.setZGyroOffset(0);
 
-    } else {
+    avgSensors();
+    cycleOffsets();
 
-    }
+    EEPROM.write(EE_ACCEL_X_ADDR, ax_offset);
+    EEPROM.write(EE_ACCEL_Y_ADDR, ay_offset);
+    EEPROM.write(EE_ACCEL_Z_ADDR, az_offset);
+    EEPROM.write(EE_GYRO_X_ADDR, gx_offset);
+    EEPROM.write(EE_GYRO_Y_ADDR, gy_offset);
+    EEPROM.write(EE_GYRO_Z_ADDR, gz_offset);
+    EEPROM.write(EE_CALIBRATED_ADDR, EE_CALIBRATED_TEST); //set flag for successful calibration
+  }
 
+  Serial.print(ax_offset); 
+  Serial.print("\t");
+  Serial.print(ay_offset); 
+  Serial.print("\t");
+  Serial.print(az_offset); 
+  Serial.print("\t");
+  Serial.print(gx_offset); 
+  Serial.print("\t");
+  Serial.print(gy_offset); 
+  Serial.print("\t");
+  Serial.println(gz_offset);
+
+  mpu.setXAccelOffset(ax_offset);
+  mpu.setYAccelOffset(ay_offset);
+  mpu.setZAccelOffset(az_offset);
+  mpu.setXGyroOffset(gx_offset);
+  mpu.setYGyroOffset(gy_offset);
+  mpu.setZGyroOffset(gz_offset);
 }
 
 #endif
