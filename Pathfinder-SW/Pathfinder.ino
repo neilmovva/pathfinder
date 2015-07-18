@@ -85,10 +85,11 @@ bool ledState = false;
 
 #include "EEPROM.h"
 #include "Wire.h"
-#include "I2Cdev.h"
-#include "helper_3dmath.h"
+
+#include "libs/I2Cdev.h"
 #define HOST_DMP_READ_RATE 7    // 1khz / (1 + READ_RATE) = 125 Hz
 #include "libs/Pathfinder_MPU6050_6Axis_MotionApps20.h"
+
 
 MPU6050 mpu;
 bool dmpReady = false;  // set true if DMP init was successful
