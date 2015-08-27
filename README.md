@@ -11,4 +11,5 @@ Pathfinder is a glove that translates distance into haptic feedback. Users just 
 I'm currently working through iterative prototypes, so the repository may be a little unorganized at times. Please raise any specific questions in the issue tracker.
 
 LICENSE: CC BY-NC-SA
-All work in this repository is licensed under CC BY-NC-SA, which lets others remix, tweak, and build upon your work non-commercially, as long as they credit you and license their new creations under identical terms.
+
+All work in this repository is licensed under CC BY-NC-SA, "which lets others remix, tweak, and build upon your work non-commercially, as long as they credit you and license their new creations under identical terms."
